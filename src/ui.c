@@ -4,33 +4,35 @@
 
 GstElement *pipeline;
 GtkWidget *listbox;
+GtkWidget *play_button, *pause_button, *skip_button, *prev_button;
 GPtrArray *music_files;
-
-
-void apply_css(GtkWidget *widget);
 
 
 void apply_css(GtkWidget *widget) {
     GtkCssProvider *provider = gtk_css_provider_new();
     gtk_css_provider_load_from_data(provider,
         "window { background-image: url('media/defaultgif.gif'); background-size: cover; }"
-        ".icon-button { background-color: white; border-radius: 50%; padding: 20px; }"
+        ".icon-button { background-color: white; border-radius: 50%; padding: 10px; }"
         ".icon-button:hover { background-color: #f0f0f0; }"
-        "button image { min-width: 64px; min-height: 64px; }"
-        "label { color: white; font-weight: bold; font-size: 14px; }",
-        -1, NULL);
+        "button image { min-width: 22px; min-height: 22px; }"
+        "label { color: white; font-weight: bold; font-size: 14px; }"
+        "listbox, scrolledwindow, button { background-color: #333; color: white; }"
+        , -1, NULL);
 
     GtkStyleContext *context = gtk_widget_get_style_context(widget);
     gtk_style_context_add_provider(context, GTK_STYLE_PROVIDER(provider), GTK_STYLE_PROVIDER_PRIORITY_USER);
 }
 
 
+const gchar *get_filename_from_path(const gchar *filepath) {
+    const gchar *filename = g_strrstr(filepath, "/");
+    return filename ? filename + 1 : filepath;
+}
+
+
 GtkWidget* create_icon_button(const char *icon_path) {
     GtkWidget *button, *image;
-    GdkPixbuf *pixbuf = gdk_pixbuf_new_from_file_at_size(icon_path, 64, 64, NULL);
-
-
-    pixbuf = gdk_pixbuf_add_alpha(pixbuf, TRUE, 0xFF, 0xFF, 0xFF);
+    GdkPixbuf *pixbuf = gdk_pixbuf_new_from_file_at_size(icon_path, 22, 22, NULL);
     image = gtk_image_new_from_pixbuf(pixbuf);
 
     button = gtk_button_new();
@@ -41,21 +43,23 @@ GtkWidget* create_icon_button(const char *icon_path) {
 }
 
 
-void play_music(const char *file_path) {
+void play_music(GtkWidget *widget, gpointer file_path) {
     if (pipeline) {
         gst_element_set_state(pipeline, GST_STATE_NULL);
-        g_object_set(pipeline, "uri", g_strdup_printf("file://%s", file_path), NULL);
+        g_object_set(pipeline, "uri", g_strdup_printf("file://%s", (char*)file_path), NULL);
         gst_element_set_state(pipeline, GST_STATE_PLAYING);
-        g_print("Lecture du fichier : %s\n", file_path);
+        g_print("Lecture du fichier : %s\n", (char*)file_path);
     }
 }
 
 
 void refresh_music_list() {
+    gtk_list_box_invalidate_filter(GTK_LIST_BOX(listbox));
     for (guint i = 0; i < music_files->len; i++) {
-        const char *filename = g_ptr_array_index(music_files, i);
+        const char *filepath = g_ptr_array_index(music_files, i);
+        const char *filename = get_filename_from_path(filepath);
         GtkWidget *row = gtk_button_new_with_label(filename);
-        g_signal_connect(row, "clicked", G_CALLBACK(play_music), g_strdup(filename));
+        g_signal_connect(row, "clicked", G_CALLBACK(play_music), g_strdup(filepath));
         gtk_list_box_insert(GTK_LIST_BOX(listbox), row, -1);
     }
     gtk_widget_show_all(listbox);
@@ -68,14 +72,28 @@ void add_file_to_music_list(const char *filename) {
 }
 
 
+void on_play_button_clicked(GtkWidget *widget, gpointer data) {
+    gst_element_set_state(pipeline, GST_STATE_PLAYING);
+}
+
+void on_pause_button_clicked(GtkWidget *widget, gpointer data) {
+    gst_element_set_state(pipeline, GST_STATE_PAUSED);
+}
+
+void on_stop_button_clicked(GtkWidget *widget, gpointer data) {
+    gst_element_set_state(pipeline, GST_STATE_NULL);
+}
+
+
 void on_music_button_clicked(GtkWidget *widget, gpointer window) {
-    GtkWidget *music_view, *scrolled_window;
+    GtkWidget *music_view, *scrolled_window, *player_box;
 
 
     music_view = gtk_window_new(GTK_WINDOW_TOPLEVEL);
     gtk_window_set_title(GTK_WINDOW(music_view), "Liste des musiques");
     gtk_window_set_default_size(GTK_WINDOW(music_view), 600, 400);
 
+    apply_css(music_view);
 
     scrolled_window = gtk_scrolled_window_new(NULL, NULL);
     gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrolled_window), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
@@ -86,7 +104,28 @@ void on_music_button_clicked(GtkWidget *widget, gpointer window) {
     refresh_music_list();
 
 
-    gtk_container_add(GTK_CONTAINER(music_view), scrolled_window);
+    prev_button = create_icon_button("media/skipp2.png");
+    play_button = create_icon_button("media/jouer.png");
+    pause_button = create_icon_button("media/pause.png");
+    skip_button = create_icon_button("media/skipp.png");
+
+    g_signal_connect(play_button, "clicked", G_CALLBACK(on_play_button_clicked), NULL);
+    g_signal_connect(pause_button, "clicked", G_CALLBACK(on_pause_button_clicked), NULL);
+    g_signal_connect(skip_button, "clicked", G_CALLBACK(on_stop_button_clicked), NULL);
+
+
+    player_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 5);
+    gtk_box_pack_start(GTK_BOX(player_box), prev_button, TRUE, TRUE, 5);
+    gtk_box_pack_start(GTK_BOX(player_box), play_button, TRUE, TRUE, 5);
+    gtk_box_pack_start(GTK_BOX(player_box), pause_button, TRUE, TRUE, 5);
+    gtk_box_pack_start(GTK_BOX(player_box), skip_button, TRUE, TRUE, 5);
+
+
+    GtkWidget *vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
+    gtk_box_pack_start(GTK_BOX(vbox), scrolled_window, TRUE, TRUE, 10);
+    gtk_box_pack_start(GTK_BOX(vbox), player_box, FALSE, FALSE, 10);
+
+    gtk_container_add(GTK_CONTAINER(music_view), vbox);
     gtk_widget_show_all(music_view);
 }
 
@@ -132,7 +171,7 @@ GtkWidget* create_horizontal_icon_bar() {
 
 
     icon_container = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
-    music_button = create_icon_button("media/musique.png");
+    music_button = create_icon_button("media/musique-notes.png");
     music_label = gtk_label_new("Musique");
     gtk_box_pack_start(GTK_BOX(icon_container), music_button, FALSE, FALSE, 10);
     gtk_box_pack_start(GTK_BOX(icon_container), music_label, FALSE, FALSE, 0);
@@ -175,7 +214,6 @@ void on_activate(GtkApplication *app, gpointer user_data) {
     window = gtk_application_window_new(app);
     gtk_window_set_title(GTK_WINDOW(window), "HarmoniX");
     gtk_window_set_default_size(GTK_WINDOW(window), 1024, 600);
-
 
     apply_css(window);
 
