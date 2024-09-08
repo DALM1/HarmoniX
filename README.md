@@ -13,4 +13,4 @@ MediaFlow est une application multimédia développée en C utilisant GTK pour c
 
 ------------------------------------------------------------------------------------------------------------
 
-gcc `pkg-config --cflags gtk+-3.0` -Iinclude -o harmonix src/main.c src/ui.c `pkg-config --libs gtk+-3.0`
+gcc `pkg-config --cflags gtk+-3.0 gstreamer-1.0` -Iinclude -o harmonix src/main.c src/ui.c `pkg-config --libs gtk+-3.0 gstreamer-1.0`
