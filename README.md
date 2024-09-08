@@ -1,5 +1,7 @@
 # MediaFlow
 
+![Logo de Calypso](media/harmoniX-t.png)
+
 ## Description
 MediaFlow est une application multimédia développée en C utilisant GTK pour créer une interface graphique moderne. Le projet permet d'ajouter des fonctionnalités de lecture audio/vidéo avec des boutons interactifs.
 
