@@ -1,8 +1,13 @@
 #include <gtk/gtk.h>
+#include <gst/gst.h>
 #include "ui.h"
+
 int main(int argc, char **argv) {
     GtkApplication *app;
     int status;
+
+
+    gst_init(&argc, &argv);
 
 
     app = gtk_application_new("com.example.MediaFlow", G_APPLICATION_DEFAULT_FLAGS);
