@@ -3,9 +3,10 @@
 
 #include <gtk/gtk.h>
 
-void on_play_button_clicked(GtkWidget *widget, gpointer data);
-void on_pause_button_clicked(GtkWidget *widget, gpointer data);
-void on_stop_button_clicked(GtkWidget *widget, gpointer data);
+
 void on_activate(GtkApplication *app, gpointer user_data);
+void on_music_button_clicked(GtkWidget *widget, gpointer window);
+void on_playlist_button_clicked(GtkWidget *widget, gpointer window);
+void on_folder_button_clicked(GtkWidget *widget, gpointer window);
 
 #endif
