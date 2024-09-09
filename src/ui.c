@@ -26,7 +26,7 @@ void apply_css(GtkWidget *widget) {
         "listbox row:nth-child(odd) { background-color: rgba(34, 34, 34, 0.5); }"
         "scale { color: white; }"
         "scale trough { background-color: rgba(85, 85, 85, 0.5); }"
-        "scale slider { background-color: white; }",  // Curseur de volume blanc
+        "scale slider { background-color: white; }",
         -1, NULL);
     GtkStyleContext *context = gtk_widget_get_style_context(widget);
     gtk_style_context_add_provider(context, GTK_STYLE_PROVIDER(provider), GTK_STYLE_PROVIDER_PRIORITY_USER);
@@ -37,18 +37,18 @@ const gchar *get_filename_from_path(const gchar *filepath) {
     return filename ? filename + 1 : filepath;
 }
 
-// Retirer l'extension du nom du fichier pour un affichage plus propre
+
 const gchar *remove_extension(const gchar *filename) {
     gchar *dot = g_strrstr(filename, ".");
     if (dot) {
-        return g_strndup(filename, dot - filename); // Retourne le nom sans l'extension
+        return g_strndup(filename, dot - filename);
     }
-    return g_strdup(filename); // Si pas d'extension, retourne le nom complet
+    return g_strdup(filename);
 }
 
 GtkWidget* create_icon_button(const char *icon_path) {
     GtkWidget *button, *image;
-    GdkPixbuf *pixbuf = gdk_pixbuf_new_from_file_at_size(icon_path, 16, 16, NULL);  // Réduire la taille des icônes
+    GdkPixbuf *pixbuf = gdk_pixbuf_new_from_file_at_size(icon_path, 16, 16, NULL);
     image = gtk_image_new_from_pixbuf(pixbuf);
     button = gtk_button_new();
     gtk_button_set_image(GTK_BUTTON(button), image);
@@ -79,22 +79,22 @@ void play_music(GtkWidget *widget, gpointer file_path) {
 
 void refresh_music_list() {
     gtk_list_box_invalidate_filter(GTK_LIST_BOX(listbox));
-    gtk_list_box_invalidate_headers(GTK_LIST_BOX(listbox));  // Mise à jour pour les doublons
-    gtk_container_foreach(GTK_CONTAINER(listbox), (GtkCallback)gtk_widget_destroy, NULL);  // Supprimer les anciens éléments
+    gtk_list_box_invalidate_headers(GTK_LIST_BOX(listbox));
+    gtk_container_foreach(GTK_CONTAINER(listbox), (GtkCallback)gtk_widget_destroy, NULL);
 
     for (guint i = 0; i < music_files->len; i++) {
         const char *filepath = g_ptr_array_index(music_files, i);
-        const char *filename = remove_extension(get_filename_from_path(filepath));  // Retirer l'extension
+        const char *filename = remove_extension(get_filename_from_path(filepath));
         GtkWidget *row = gtk_button_new_with_label(filename);
         g_signal_connect(row, "clicked", G_CALLBACK(play_music), g_strdup(filepath));
         gtk_list_box_insert(GTK_LIST_BOX(listbox), row, -1);
-        g_free((gchar *)filename);  // Libérer la mémoire allouée pour le nom du fichier sans extension
+        g_free((gchar *)filename);
     }
     gtk_widget_show_all(listbox);
 }
 
 void add_file_to_music_list(const char *filename) {
-    // Vérifie si le fichier est déjà dans la liste avant de l'ajouter
+
     for (guint i = 0; i < music_files->len; i++) {
         if (g_strcmp0(filename, g_ptr_array_index(music_files, i)) == 0) {
             g_print("Le fichier %s est déjà dans la liste.\n", filename);
@@ -219,7 +219,7 @@ void on_playlist_button_clicked(GtkWidget *widget, gpointer window) {
     g_print("Gestion des playlists à implémenter\n");
 }
 
-// Fonction pour charger et afficher le GIF en arrière-plan
+
 GtkWidget* create_background_image(const char* gif_path) {
     GdkPixbufAnimation *animation = gdk_pixbuf_animation_new_from_file(gif_path, NULL);
     return gtk_image_new_from_animation(animation);
@@ -239,19 +239,16 @@ void on_activate(GtkApplication *app, gpointer user_data) {
     gtk_window_set_title(GTK_WINDOW(window), "HarmoniX");
     gtk_window_set_default_size(GTK_WINDOW(window), 1024, 600);
 
-    // Utiliser GtkOverlay pour superposer les widgets
     overlay = gtk_overlay_new();
     gtk_container_add(GTK_CONTAINER(window), overlay);
 
-    // Charger et ajouter le GIF en arrière-plan
     background_image = create_background_image("media/defaultgif.gif");
     gtk_overlay_add_overlay(GTK_OVERLAY(overlay), background_image);
-    gtk_overlay_set_overlay_pass_through(GTK_OVERLAY(overlay), background_image, TRUE);  // Permettre les interactions sur les widgets au-dessus
+    gtk_overlay_set_overlay_pass_through(GTK_OVERLAY(overlay), background_image, TRUE);
 
-    // Créer une boîte verticale contenant le reste de l'interface
     main_vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
     gtk_container_set_border_width(GTK_CONTAINER(main_vbox), 20);
-    gtk_overlay_add_overlay(GTK_OVERLAY(overlay), main_vbox);  // Ajouter main_vbox par-dessus l'arrière-plan GIF
+    gtk_overlay_add_overlay(GTK_OVERLAY(overlay), main_vbox);
 
     icon_bar = create_icon_bar();
     gtk_box_pack_start(GTK_BOX(main_vbox), icon_bar, FALSE, FALSE, 0);
