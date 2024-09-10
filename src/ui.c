@@ -9,7 +9,7 @@ GtkWidget *play_button, *pause_button, *skip_button, *prev_button;
 GtkWidget *volume_scale;
 GtkWidget *progress_bar;
 gint current_track = -1;
-GPtrArray *music_files = NULL;  
+GPtrArray *music_files = NULL;
 
 
 void on_playlist_selected(GtkWidget *widget, gpointer user_data);
@@ -21,8 +21,9 @@ void apply_css(GtkWidget *widget) {
         "window { background-color: rgba(243, 242, 242, 0); }"
         ".icon-button { background-color: rgba(34, 34, 34, 0.5); border-radius: 50%; padding: 10px; }"
         ".icon-button:hover { background-color: rgba(51, 51, 51, 0.7); }"
-        "button { background-color: rgba(34, 34, 34, 0.5); color: white; font-size: 12px; }"
-        "button:hover { background-color: rgba(34, 34, 34, 0.5); }"
+        "button { background-color: rgba(34, 34, 34, 0.5); color: white; font-size: 10px; padding: 2px 5px; min-height: 20px; border: none; outline: none; }"
+        "button:hover { background-color: rgba(51, 51, 51, 0.7); }"
+        "button:selected { background-color: rgba(51, 51, 51, 0.7); outline: none; }"
         "label { color: white; font-weight: bold; font-size: 14px; }"
         "listbox { background-color: rgba(243, 242, 242, 0); color: white; }"
         "scale { color: white; }"
@@ -32,7 +33,6 @@ void apply_css(GtkWidget *widget) {
     GtkStyleContext *context = gtk_widget_get_style_context(widget);
     gtk_style_context_add_provider(context, GTK_STYLE_PROVIDER(provider), GTK_STYLE_PROVIDER_PRIORITY_USER);
 }
-
 
 const gchar *get_filename_from_path(const gchar *filepath) {
     const gchar *filename = g_strrstr(filepath, "/");
@@ -84,7 +84,7 @@ void start_fade_out(gpointer user_data) {
     gdouble volume = 1.0;
     for (gdouble step = 0.9; step >= 0.0; step -= 0.1) {
         g_object_set(pipeline, "volume", step, NULL);
-        g_usleep(200000); // Pause de 200ms
+        g_usleep(200000);
     }
     g_object_set(pipeline, "volume", 0.0, NULL);
 }
@@ -96,9 +96,9 @@ void play_music_by_index(gint index) {
         gchar *uri = g_strdup_printf("file://%s", file_path);
         g_print("Tentative de lecture du fichier : %s\n", uri);
 
-       
+
         gst_element_set_state(pipeline, GST_STATE_NULL);
-        g_usleep(500000); 
+        g_usleep(500000);
         g_object_set(pipeline, "uri", uri, NULL);
 
         GstStateChangeReturn ret = gst_element_set_state(pipeline, GST_STATE_PLAYING);
@@ -110,7 +110,7 @@ void play_music_by_index(gint index) {
         }
 
         current_track = index;
-        g_timeout_add(500, update_progress_bar, NULL); 
+        g_timeout_add(500, update_progress_bar, NULL);
         g_free(uri);
     }
 }
@@ -146,11 +146,11 @@ void on_about_to_finish(GstElement *pipeline, gpointer user_data) {
         return;
     }
 
-   
+
     current_track++;
 
     if (current_track >= music_files->len) {
-        current_track = 0;  
+        current_track = 0;
     }
 
     play_music_by_index(current_track);
@@ -266,7 +266,7 @@ void on_drag_data_received(GtkWidget *widget, GdkDragContext *context, gint x, g
     for (gint i = 0; uris[i] != NULL; i++) {
         gchar *file_path = g_filename_from_uri(uris[i], NULL, NULL);
         if (file_path) {
-            add_file_to_playlist(file_path, current_playlist);  // Ajouter le fichier à la playlist
+            add_file_to_playlist(file_path, current_playlist);
             g_free(file_path);
         }
     }
@@ -286,14 +286,14 @@ void on_folder_button_clicked(GtkWidget *widget, gpointer window) {
     if (res == GTK_RESPONSE_ACCEPT) {
         GSList *filenames = gtk_file_chooser_get_filenames(GTK_FILE_CHOOSER(dialog));
         for (GSList *iter = filenames; iter != NULL; iter = iter->next) {
-            add_file_to_playlist((const char *)iter->data, current_playlist);  
+            add_file_to_playlist((const char *)iter->data, current_playlist);
             g_free(iter->data);
         }
         g_slist_free(filenames);
     }
 
     gtk_widget_destroy(dialog);
-    refresh_playlist_view(listbox); 
+    refresh_playlist_view(listbox);
 }
 
 
@@ -328,7 +328,7 @@ void on_playlist_selected(GtkWidget *widget, gpointer user_data) {
     gint playlist_index = GPOINTER_TO_INT(user_data);
     load_playlist(playlist_index);
 
-    
+
     GtkWidget *dialog = gtk_file_chooser_dialog_new("Ajouter des fichiers à la playlist",
         NULL,
         GTK_FILE_CHOOSER_ACTION_OPEN,
