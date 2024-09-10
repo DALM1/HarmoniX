@@ -22,7 +22,7 @@ void apply_css(GtkWidget *widget) {
         ".icon-button { background-color: rgba(34, 34, 34, 0.5); border-radius: 50%; padding: 10px; }"
         ".icon-button:hover { background-color: rgba(51, 51, 51, 0.7); }"
         "button { background-color: rgba(34, 34, 34, 0.5); color: white; font-size: 12px; }"
-        "button:hover { background-color: rgba(51, 51, 51, 0.7); }"
+        "button:hover { background-color: rgba(34, 34, 34, 0.5); }"
         "label { color: white; font-weight: bold; font-size: 14px; }"
         "listbox { background-color: rgba(243, 242, 242, 0); color: white; }"
         "scale { color: white; }"
