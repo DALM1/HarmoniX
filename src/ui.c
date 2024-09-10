@@ -3,6 +3,10 @@
 #include <string.h>
 #include "ui.h"
 
+// Declare the functions before their use
+void on_about_to_finish(GstElement *pipeline, gpointer user_data);
+void on_track_button_clicked(GtkWidget *widget, gpointer user_data);
+
 GstElement *pipeline;
 GtkWidget *listbox;
 GtkWidget *play_button, *pause_button, *skip_button, *prev_button;
@@ -49,11 +53,23 @@ void on_volume_changed(GtkRange *range, gpointer data) {
 
 gboolean update_progress_bar(gpointer data) {
     gint64 position = 0, duration = 0;
+
     if (gst_element_query_position(pipeline, GST_FORMAT_TIME, &position) &&
         gst_element_query_duration(pipeline, GST_FORMAT_TIME, &duration)) {
+
         gdouble progress = (gdouble)position / (gdouble)duration;
+
+        if (progress > 0.99) {
+            progress = 1.0;
+        }
+
         gtk_range_set_value(GTK_RANGE(progress_bar), progress);
+
+        if (progress >= 1.0) {
+            on_about_to_finish(pipeline, NULL);
+        }
     }
+
     return TRUE;
 }
 
@@ -65,6 +81,7 @@ void play_music_by_index(gint index) {
 
         gst_element_set_state(pipeline, GST_STATE_NULL);
         g_object_set(pipeline, "uri", uri, NULL);
+
         GstStateChangeReturn ret = gst_element_set_state(pipeline, GST_STATE_PLAYING);
 
         if (ret == GST_STATE_CHANGE_FAILURE) {
@@ -85,13 +102,20 @@ void refresh_music_list() {
 
     for (guint i = 0; i < music_files->len; i++) {
         const char *filepath = g_ptr_array_index(music_files, i);
-        const char *filename = remove_extension(get_filename_from_path(filepath));  // Retirer l'extension
+        const char *filename = remove_extension(get_filename_from_path(filepath));
         GtkWidget *row = gtk_button_new_with_label(filename);
-        g_signal_connect(row, "clicked", G_CALLBACK(play_music_by_index), GINT_TO_POINTER(i));
+
+        g_signal_connect(row, "clicked", G_CALLBACK(on_track_button_clicked), GINT_TO_POINTER(i));
+
         gtk_list_box_insert(GTK_LIST_BOX(listbox), row, -1);
-        g_free((gchar *)filename);  // Libérer la mémoire allouée par g_strndup
+        g_free((gchar *)filename);
     }
     gtk_widget_show_all(listbox);
+}
+
+void on_track_button_clicked(GtkWidget *widget, gpointer user_data) {
+    gint track_index = GPOINTER_TO_INT(user_data);
+    play_music_by_index(track_index);
 }
 
 void add_file_to_music_list(const char *filename) {
@@ -111,11 +135,16 @@ void on_about_to_finish(GstElement *pipeline, gpointer user_data) {
         play_music_by_index(next_track);
     } else {
         g_print("Fin de la liste de lecture.\n");
+        gst_element_set_state(pipeline, GST_STATE_NULL);
     }
 }
 
 void on_play_button_clicked(GtkWidget *widget, gpointer data) {
-    gst_element_set_state(pipeline, GST_STATE_PLAYING);
+    if (current_track == -1 && music_files->len > 0) {
+        play_music_by_index(0);
+    } else {
+        gst_element_set_state(pipeline, GST_STATE_PLAYING);
+    }
 }
 
 void on_pause_button_clicked(GtkWidget *widget, gpointer data) {
