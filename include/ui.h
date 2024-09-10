@@ -5,7 +5,7 @@
 #include <gst/gst.h>
 
 extern GstElement *pipeline;
-extern GPtrArray *music_files;  // Make music_files global
+extern GPtrArray *music_files;
 
 GtkWidget* create_icon_bar();
 GtkWidget* create_icon_button(const char *icon_path);
@@ -23,7 +23,7 @@ gboolean update_progress_bar(gpointer data);
 void refresh_music_list();
 void play_music_by_index(gint index);
 
-// Add these declarations
+
 void on_about_to_finish(GstElement *pipeline, gpointer user_data);
 void on_track_button_clicked(GtkWidget *widget, gpointer user_data);
 const gchar *get_filename_from_path(const gchar *filepath);

@@ -1,6 +1,7 @@
 #include "ui.h"
 #include "playlist.h"
 #include <string.h>
+#include <glib.h>
 
 GstElement *pipeline;
 GtkWidget *listbox;
@@ -11,8 +12,9 @@ gint current_track = -1;
 GPtrArray *music_files = NULL;  // Déclaration globale pour les fichiers
 
 // Déclaration de la fonction on_playlist_selected avant son utilisation
-void on_playlist_selected(GtkWidget *widget, gpointer user_data);  // Ajout de la déclaration
+void on_playlist_selected(GtkWidget *widget, gpointer user_data);
 
+// Applique le style CSS pour les widgets
 void apply_css(GtkWidget *widget) {
     GtkCssProvider *provider = gtk_css_provider_new();
     gtk_css_provider_load_from_data(provider,
@@ -31,11 +33,13 @@ void apply_css(GtkWidget *widget) {
     gtk_style_context_add_provider(context, GTK_STYLE_PROVIDER(provider), GTK_STYLE_PROVIDER_PRIORITY_USER);
 }
 
+// Obtenir le nom de fichier depuis un chemin
 const gchar *get_filename_from_path(const gchar *filepath) {
     const gchar *filename = g_strrstr(filepath, "/");
     return filename ? filename + 1 : filepath;
 }
 
+// Supprimer l'extension du nom de fichier
 const gchar *remove_extension(const gchar *filename) {
     gchar *dot = g_strrstr(filename, ".");
     if (dot) {
@@ -44,11 +48,13 @@ const gchar *remove_extension(const gchar *filename) {
     return g_strdup(filename);
 }
 
+// Fonction pour gérer le changement de volume
 void on_volume_changed(GtkRange *range, gpointer data) {
     gdouble volume = gtk_range_get_value(range);
     g_object_set(pipeline, "volume", volume, NULL);
 }
 
+// Mise à jour de la barre de progression
 gboolean update_progress_bar(gpointer data) {
     gint64 position = 0, duration = 0;
 
@@ -61,7 +67,9 @@ gboolean update_progress_bar(gpointer data) {
             progress = 1.0;
         }
 
-        gtk_range_set_value(GTK_RANGE(progress_bar), progress);
+        if (GTK_IS_RANGE(progress_bar)) {
+            gtk_range_set_value(GTK_RANGE(progress_bar), progress);
+        }
 
         if (progress >= 1.0) {
             on_about_to_finish(pipeline, NULL);
@@ -71,29 +79,43 @@ gboolean update_progress_bar(gpointer data) {
     return TRUE;
 }
 
+// Fonction pour effectuer un fondu enchaîné
+void start_fade_out(gpointer user_data) {
+    gdouble volume = 1.0;
+    for (gdouble step = 0.9; step >= 0.0; step -= 0.1) {
+        g_object_set(pipeline, "volume", step, NULL);
+        g_usleep(200000); // Pause de 200ms
+    }
+    g_object_set(pipeline, "volume", 0.0, NULL);
+}
+
+// Lecture de la musique par index
 void play_music_by_index(gint index) {
     if (index >= 0 && index < music_files->len) {
         const char *file_path = g_ptr_array_index(music_files, index);
         gchar *uri = g_strdup_printf("file://%s", file_path);
-        g_print("Lecture du fichier %s\n", uri);
+        g_print("Tentative de lecture du fichier : %s\n", uri);
 
+        // Arrête la lecture en cours avant de démarrer la suivante
         gst_element_set_state(pipeline, GST_STATE_NULL);
+        g_usleep(500000);  // Pause de 500ms pour s'assurer que le pipeline est bien arrêté
         g_object_set(pipeline, "uri", uri, NULL);
 
         GstStateChangeReturn ret = gst_element_set_state(pipeline, GST_STATE_PLAYING);
 
         if (ret == GST_STATE_CHANGE_FAILURE) {
-            g_printerr("Erreur: Impossible de démarrer la lecture.\n");
+            g_printerr("Erreur : Impossible de démarrer la lecture de %s.\n", uri);
         } else {
-            g_print("La musique est en cours de lecture.\n");
+            g_print("Lecture en cours : %s\n", uri);
         }
 
         current_track = index;
-        g_timeout_add(500, update_progress_bar, NULL);
+        g_timeout_add(500, update_progress_bar, NULL);  // Mise à jour de la barre de progression
         g_free(uri);
     }
 }
 
+// Rafraîchir la liste des musiques
 void refresh_music_list() {
     gtk_list_box_invalidate_filter(GTK_LIST_BOX(listbox));
     gtk_container_foreach(GTK_CONTAINER(listbox), (GtkCallback)gtk_widget_destroy, NULL);
@@ -111,22 +133,30 @@ void refresh_music_list() {
     gtk_widget_show_all(listbox);
 }
 
+// Gérer le clic sur une piste
 void on_track_button_clicked(GtkWidget *widget, gpointer user_data) {
     gint track_index = GPOINTER_TO_INT(user_data);
     play_music_by_index(track_index);
 }
 
+// Gérer la fin de la piste en lecture et passer à la suivante
 void on_about_to_finish(GstElement *pipeline, gpointer user_data) {
-    gint next_track = current_track + 1;
-    if (next_track < music_files->len) {
-        play_music_by_index(next_track);
-    } else {
-        g_print("Fin de la liste de lecture.\n");
-        gst_element_set_state(pipeline, GST_STATE_READY);  // Changer à READY pour éviter les plantages
-        current_track = -1;  // Réinitialiser l'index du morceau
+    if (music_files == NULL || music_files->len == 0) {
+        g_print("Aucune musique à lire.\n");
+        return;
     }
+
+    // Passe à la piste suivante
+    current_track++;
+
+    if (current_track >= music_files->len) {
+        current_track = 0;  // Revenir à la première piste
+    }
+
+    play_music_by_index(current_track);
 }
 
+// Gérer le bouton de lecture
 void on_play_button_clicked(GtkWidget *widget, gpointer data) {
     if (current_track == -1 && music_files->len > 0) {
         play_music_by_index(0);
@@ -135,25 +165,28 @@ void on_play_button_clicked(GtkWidget *widget, gpointer data) {
     }
 }
 
+// Gérer le bouton pause
 void on_pause_button_clicked(GtkWidget *widget, gpointer data) {
     gst_element_set_state(pipeline, GST_STATE_PAUSED);
 }
 
+// Passer à la piste suivante
 void on_skip_button_clicked(GtkWidget *widget, gpointer data) {
     on_about_to_finish(pipeline, NULL);
 }
 
+// Passer à la piste précédente
 void on_prev_button_clicked(GtkWidget *widget, gpointer data) {
     gint prev_track = current_track - 1;
 
-    if (prev_track >= 0) {
-        play_music_by_index(prev_track);
-    } else {
+    if (prev_track < 0) {
         prev_track = music_files->len - 1;
-        play_music_by_index(prev_track);
     }
+
+    play_music_by_index(prev_track);
 }
 
+// Création des boutons d'icônes
 GtkWidget* create_icon_button(const char *icon_path) {
     GtkWidget *button, *image;
     GdkPixbuf *pixbuf = gdk_pixbuf_new_from_file_at_size(icon_path, 16, 16, NULL);
@@ -165,6 +198,7 @@ GtkWidget* create_icon_button(const char *icon_path) {
     return button;
 }
 
+// Création de la barre d'icônes
 GtkWidget* create_icon_bar() {
     GtkWidget *bar, *music_button, *playlist_button, *folder_button;
     GtkWidget *music_label, *playlist_label, *folder_label;
@@ -198,6 +232,7 @@ GtkWidget* create_icon_bar() {
     return bar;
 }
 
+// Création de la boîte du lecteur
 GtkWidget* create_player_box() {
     GtkWidget *player_box;
     prev_button = create_icon_button("media/skipp2.png");
@@ -221,9 +256,6 @@ GtkWidget* create_player_box() {
     g_signal_connect(volume_scale, "value-changed", G_CALLBACK(on_volume_changed), NULL);
     gtk_box_pack_start(GTK_BOX(player_box), volume_scale, TRUE, TRUE, 5);
 
-    progress_bar = gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL, 0, 1, 0.01);
-    gtk_box_pack_start(GTK_BOX(player_box), progress_bar, TRUE, TRUE, 5);
-
     return player_box;
 }
 
@@ -242,6 +274,7 @@ void on_drag_data_received(GtkWidget *widget, GdkDragContext *context, gint x, g
     gtk_drag_finish(context, TRUE, FALSE, time);
 }
 
+// Gérer l'ajout de fichiers depuis un dossier
 void on_folder_button_clicked(GtkWidget *widget, gpointer window) {
     GtkWidget *dialog;
     GtkFileChooserAction action = GTK_FILE_CHOOSER_ACTION_OPEN;
@@ -263,10 +296,12 @@ void on_folder_button_clicked(GtkWidget *widget, gpointer window) {
     refresh_playlist_view(listbox);  // Rafraîchir l'affichage de la playlist
 }
 
+// Gérer l'affichage des musiques
 void on_music_button_clicked(GtkWidget *widget, gpointer window) {
     refresh_music_list();
 }
 
+// Gérer l'affichage des playlists
 void on_playlist_button_clicked(GtkWidget *widget, gpointer window) {
     g_print("Affichage des playlists...\n");
 
@@ -315,6 +350,7 @@ void on_playlist_selected(GtkWidget *widget, gpointer user_data) {
     gtk_widget_destroy(dialog);
 }
 
+// Fonction d'activation de l'application
 void on_activate(GtkApplication *app, gpointer user_data) {
     GtkWidget *window, *main_vbox, *icon_bar, *player_box, *scrolled_window;
 
@@ -347,7 +383,6 @@ void on_activate(GtkApplication *app, gpointer user_data) {
 
     gtk_widget_show_all(window);
 
-    // Support du Drag & Drop
     GtkTargetEntry targets[] = {
         {"text/uri-list", 0, 0},
     };

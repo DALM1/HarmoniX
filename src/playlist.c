@@ -4,6 +4,7 @@
 GPtrArray *playlists = NULL;
 gint current_playlist = -1;
 
+// Ajouter une nouvelle playlist
 void add_playlist(const char *playlist_name) {
     Playlist *new_playlist = g_new(Playlist, 1);
     new_playlist->name = g_strdup(playlist_name);
@@ -11,6 +12,7 @@ void add_playlist(const char *playlist_name) {
     g_ptr_array_add(playlists, new_playlist);
 }
 
+// Charger une playlist par index
 void load_playlist(gint playlist_index) {
     if (playlist_index >= 0 && playlist_index < playlists->len) {
         Playlist *playlist = g_ptr_array_index(playlists, playlist_index);
@@ -20,6 +22,7 @@ void load_playlist(gint playlist_index) {
     }
 }
 
+// Ajouter un fichier à la playlist en évitant les doublons
 void add_file_to_playlist(const char *filename, gint playlist_index) {
     if (playlist_index >= 0 && playlist_index < playlists->len) {
         Playlist *playlist = g_ptr_array_index(playlists, playlist_index);
@@ -35,6 +38,7 @@ void add_file_to_playlist(const char *filename, gint playlist_index) {
     }
 }
 
+// Rafraîchir l'affichage de la playlist
 void refresh_playlist_view(GtkWidget *listbox) {
     gtk_list_box_invalidate_filter(GTK_LIST_BOX(listbox));
     gtk_container_foreach(GTK_CONTAINER(listbox), (GtkCallback)gtk_widget_destroy, NULL);
