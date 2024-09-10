@@ -3,7 +3,7 @@
 #include <string.h>
 #include "ui.h"
 
-// Declare the functions before their use
+
 void on_about_to_finish(GstElement *pipeline, gpointer user_data);
 void on_track_button_clicked(GtkWidget *widget, gpointer user_data);
 
@@ -18,16 +18,16 @@ GPtrArray *music_files;
 void apply_css(GtkWidget *widget) {
     GtkCssProvider *provider = gtk_css_provider_new();
     gtk_css_provider_load_from_data(provider,
-        "window { background-color: rgba(0, 0, 0, 0); }"
+        "window { background-color: rgba(243, 242, 242, 0); }"
         ".icon-button { background-color: rgba(34, 34, 34, 0.5); border-radius: 50%; padding: 10px; }"
         ".icon-button:hover { background-color: rgba(51, 51, 51, 0.7); }"
         "button { background-color: rgba(34, 34, 34, 0.5); color: white; font-size: 12px; }"
         "button:hover { background-color: rgba(51, 51, 51, 0.7); }"
         "label { color: white; font-weight: bold; font-size: 14px; }"
-        "listbox { background-color: rgba(34, 34, 34, 0.5); color: white; }"
+        "listbox { background-color: rgba(243, 242, 242, 0); color: white; }"
         "scale { color: white; }"
         "scale trough { background-color: rgba(85, 85, 85, 0.5); }"
-        "scale slider { background-color: white; }",
+        "scale slider { background-color: grey; }",
         -1, NULL);
     GtkStyleContext *context = gtk_widget_get_style_context(widget);
     gtk_style_context_add_provider(context, GTK_STYLE_PROVIDER(provider), GTK_STYLE_PROVIDER_PRIORITY_USER);
@@ -77,7 +77,7 @@ void play_music_by_index(gint index) {
     if (index >= 0 && index < music_files->len) {
         const char *file_path = g_ptr_array_index(music_files, index);
         gchar *uri = g_strdup_printf("file://%s", file_path);
-        g_print("Lecture du fichier : %s\n", uri);
+        g_print("Lecture du fichier %s\n", uri);
 
         gst_element_set_state(pipeline, GST_STATE_NULL);
         g_object_set(pipeline, "uri", uri, NULL);
@@ -85,7 +85,7 @@ void play_music_by_index(gint index) {
         GstStateChangeReturn ret = gst_element_set_state(pipeline, GST_STATE_PLAYING);
 
         if (ret == GST_STATE_CHANGE_FAILURE) {
-            g_printerr("Erreur : Impossible de démarrer la lecture.\n");
+            g_printerr("Erreur Impossible de démarrer la lecture.\n");
         } else {
             g_print("La musique est en cours de lecture.\n");
         }
