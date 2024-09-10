@@ -7,7 +7,15 @@ MediaFlow (HarmoniX) est une application multimédia développée en C utilisant
 
 ## Instructions de compilation
 1. Assurez-vous que **GTK 3** est installé sur votre système.
-2. Clonez ce dépôt et accédez au répertoire du projet puis dans le terminal
+2. Clonez ce dépôt et accédez au répertoire du projet puis lancez la commande
+
+```
+make
+
+puis lancer le logiciel
+
+```
+./harmonix
 
 
 
