@@ -12,11 +12,13 @@ MediaFlow (HarmoniX) est une application multimédia développée en C utilisant
 ```
 make
 
-puis lancer le logiciel
+```
+
+puis lancez le logiciel
 
 ```
 ./harmonix
-
+```
 
 
 ------------------------------------------------------------------------------------------------------------
