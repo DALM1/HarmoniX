@@ -1,11 +1,6 @@
-#include <gtk/gtk.h>
-#include <gst/gst.h>
-#include <string.h>
 #include "ui.h"
-
-
-void on_about_to_finish(GstElement *pipeline, gpointer user_data);
-void on_track_button_clicked(GtkWidget *widget, gpointer user_data);
+#include "playlist.h"
+#include <string.h>
 
 GstElement *pipeline;
 GtkWidget *listbox;
@@ -13,7 +8,10 @@ GtkWidget *play_button, *pause_button, *skip_button, *prev_button;
 GtkWidget *volume_scale;
 GtkWidget *progress_bar;
 gint current_track = -1;
-GPtrArray *music_files;
+GPtrArray *music_files = NULL;  // Déclaration globale pour les fichiers
+
+// Déclaration de la fonction on_playlist_selected avant son utilisation
+void on_playlist_selected(GtkWidget *widget, gpointer user_data);  // Ajout de la déclaration
 
 void apply_css(GtkWidget *widget) {
     GtkCssProvider *provider = gtk_css_provider_new();
@@ -85,7 +83,7 @@ void play_music_by_index(gint index) {
         GstStateChangeReturn ret = gst_element_set_state(pipeline, GST_STATE_PLAYING);
 
         if (ret == GST_STATE_CHANGE_FAILURE) {
-            g_printerr("Erreur Impossible de démarrer la lecture.\n");
+            g_printerr("Erreur: Impossible de démarrer la lecture.\n");
         } else {
             g_print("La musique est en cours de lecture.\n");
         }
@@ -118,24 +116,14 @@ void on_track_button_clicked(GtkWidget *widget, gpointer user_data) {
     play_music_by_index(track_index);
 }
 
-void add_file_to_music_list(const char *filename) {
-    for (guint i = 0; i < music_files->len; i++) {
-        if (g_strcmp0(filename, g_ptr_array_index(music_files, i)) == 0) {
-            g_print("Le fichier %s est déjà dans la liste.\n", filename);
-            return;
-        }
-    }
-    g_ptr_array_add(music_files, g_strdup(filename));
-    refresh_music_list();
-}
-
 void on_about_to_finish(GstElement *pipeline, gpointer user_data) {
     gint next_track = current_track + 1;
     if (next_track < music_files->len) {
         play_music_by_index(next_track);
     } else {
         g_print("Fin de la liste de lecture.\n");
-        gst_element_set_state(pipeline, GST_STATE_NULL);
+        gst_element_set_state(pipeline, GST_STATE_READY);  // Changer à READY pour éviter les plantages
+        current_track = -1;  // Réinitialiser l'index du morceau
     }
 }
 
@@ -151,17 +139,17 @@ void on_pause_button_clicked(GtkWidget *widget, gpointer data) {
     gst_element_set_state(pipeline, GST_STATE_PAUSED);
 }
 
-void on_stop_button_clicked(GtkWidget *widget, gpointer data) {
-    gst_element_set_state(pipeline, GST_STATE_NULL);
-}
-
 void on_skip_button_clicked(GtkWidget *widget, gpointer data) {
     on_about_to_finish(pipeline, NULL);
 }
 
 void on_prev_button_clicked(GtkWidget *widget, gpointer data) {
     gint prev_track = current_track - 1;
+
     if (prev_track >= 0) {
+        play_music_by_index(prev_track);
+    } else {
+        prev_track = music_files->len - 1;
         play_music_by_index(prev_track);
     }
 }
@@ -220,6 +208,7 @@ GtkWidget* create_player_box() {
     g_signal_connect(play_button, "clicked", G_CALLBACK(on_play_button_clicked), NULL);
     g_signal_connect(pause_button, "clicked", G_CALLBACK(on_pause_button_clicked), NULL);
     g_signal_connect(skip_button, "clicked", G_CALLBACK(on_skip_button_clicked), NULL);
+    g_signal_connect(prev_button, "clicked", G_CALLBACK(on_prev_button_clicked), NULL);
 
     player_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 5);
     gtk_box_pack_start(GTK_BOX(player_box), prev_button, TRUE, TRUE, 5);
@@ -236,6 +225,94 @@ GtkWidget* create_player_box() {
     gtk_box_pack_start(GTK_BOX(player_box), progress_bar, TRUE, TRUE, 5);
 
     return player_box;
+}
+
+// Gestion du Drag & Drop
+void on_drag_data_received(GtkWidget *widget, GdkDragContext *context, gint x, gint y, GtkSelectionData *data, guint info, guint time, gpointer user_data) {
+    gchar **uris = gtk_selection_data_get_uris(data);
+
+    for (gint i = 0; uris[i] != NULL; i++) {
+        gchar *file_path = g_filename_from_uri(uris[i], NULL, NULL);
+        if (file_path) {
+            add_file_to_playlist(file_path, current_playlist);  // Ajouter le fichier à la playlist
+            g_free(file_path);
+        }
+    }
+
+    gtk_drag_finish(context, TRUE, FALSE, time);
+}
+
+void on_folder_button_clicked(GtkWidget *widget, gpointer window) {
+    GtkWidget *dialog;
+    GtkFileChooserAction action = GTK_FILE_CHOOSER_ACTION_OPEN;
+    gint res;
+    dialog = gtk_file_chooser_dialog_new("Ajouter un fichier audio ou vidéo", GTK_WINDOW(window), action, "_Annuler", GTK_RESPONSE_CANCEL, "_Ouvrir", GTK_RESPONSE_ACCEPT, NULL);
+    gtk_file_chooser_set_select_multiple(GTK_FILE_CHOOSER(dialog), TRUE);
+    res = gtk_dialog_run(GTK_DIALOG(dialog));
+
+    if (res == GTK_RESPONSE_ACCEPT) {
+        GSList *filenames = gtk_file_chooser_get_filenames(GTK_FILE_CHOOSER(dialog));
+        for (GSList *iter = filenames; iter != NULL; iter = iter->next) {
+            add_file_to_playlist((const char *)iter->data, current_playlist);  // Ajouter les fichiers à la playlist sélectionnée
+            g_free(iter->data);
+        }
+        g_slist_free(filenames);
+    }
+
+    gtk_widget_destroy(dialog);
+    refresh_playlist_view(listbox);  // Rafraîchir l'affichage de la playlist
+}
+
+void on_music_button_clicked(GtkWidget *widget, gpointer window) {
+    refresh_music_list();
+}
+
+void on_playlist_button_clicked(GtkWidget *widget, gpointer window) {
+    g_print("Affichage des playlists...\n");
+
+    gtk_container_foreach(GTK_CONTAINER(listbox), (GtkCallback)gtk_widget_destroy, NULL);
+
+    if (playlists && playlists->len > 0) {
+        for (guint i = 0; i < playlists->len; i++) {
+            Playlist *playlist = g_ptr_array_index(playlists, i);
+            GtkWidget *row = gtk_button_new_with_label(playlist->name);
+
+            g_signal_connect(row, "clicked", G_CALLBACK(on_playlist_selected), GINT_TO_POINTER(i));
+
+            gtk_list_box_insert(GTK_LIST_BOX(listbox), row, -1);
+        }
+    } else {
+        g_print("Aucune playlist disponible.\n");
+    }
+
+    gtk_widget_show_all(listbox);
+}
+
+// Définition de la fonction on_playlist_selected
+void on_playlist_selected(GtkWidget *widget, gpointer user_data) {
+    gint playlist_index = GPOINTER_TO_INT(user_data);
+    load_playlist(playlist_index);
+
+    // Ajouter des fichiers à la playlist sélectionnée
+    GtkWidget *dialog = gtk_file_chooser_dialog_new("Ajouter des fichiers à la playlist",
+        NULL,
+        GTK_FILE_CHOOSER_ACTION_OPEN,
+        "_Annuler", GTK_RESPONSE_CANCEL,
+        "_Ajouter", GTK_RESPONSE_ACCEPT,
+        NULL);
+
+    gtk_file_chooser_set_select_multiple(GTK_FILE_CHOOSER(dialog), TRUE);
+
+    if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT) {
+        GSList *files = gtk_file_chooser_get_filenames(GTK_FILE_CHOOSER(dialog));
+        for (GSList *iter = files; iter != NULL; iter = iter->next) {
+            add_file_to_playlist((char *)iter->data, playlist_index);
+            g_free(iter->data);
+        }
+        g_slist_free(files);
+    }
+
+    gtk_widget_destroy(dialog);
 }
 
 void on_activate(GtkApplication *app, gpointer user_data) {
@@ -269,30 +346,15 @@ void on_activate(GtkApplication *app, gpointer user_data) {
     gtk_box_pack_end(GTK_BOX(main_vbox), player_box, FALSE, FALSE, 0);
 
     gtk_widget_show_all(window);
-}
 
-void on_folder_button_clicked(GtkWidget *widget, gpointer window) {
-    GtkWidget *dialog;
-    GtkFileChooserAction action = GTK_FILE_CHOOSER_ACTION_OPEN;
-    gint res;
-    dialog = gtk_file_chooser_dialog_new("Ajouter un fichier audio ou vidéo", GTK_WINDOW(window), action, "_Annuler", GTK_RESPONSE_CANCEL, "_Ouvrir", GTK_RESPONSE_ACCEPT, NULL);
-    gtk_file_chooser_set_select_multiple(GTK_FILE_CHOOSER(dialog), TRUE);
-    res = gtk_dialog_run(GTK_DIALOG(dialog));
-    if (res == GTK_RESPONSE_ACCEPT) {
-        GSList *filenames = gtk_file_chooser_get_filenames(GTK_FILE_CHOOSER(dialog));
-        for (GSList *iter = filenames; iter != NULL; iter = iter->next) {
-            add_file_to_music_list((const char *)iter->data);
-            g_free(iter->data);
-        }
-        g_slist_free(filenames);
-    }
-    gtk_widget_destroy(dialog);
-}
+    // Support du Drag & Drop
+    GtkTargetEntry targets[] = {
+        {"text/uri-list", 0, 0},
+    };
+    gtk_drag_dest_set(window, GTK_DEST_DEFAULT_ALL, targets, G_N_ELEMENTS(targets), GDK_ACTION_COPY);
+    g_signal_connect(window, "drag-data-received", G_CALLBACK(on_drag_data_received), NULL);
 
-void on_music_button_clicked(GtkWidget *widget, gpointer window) {
-    refresh_music_list();
-}
-
-void on_playlist_button_clicked(GtkWidget *widget, gpointer window) {
-    g_print("Gestion des playlists à implémenter\n");
+    playlists = g_ptr_array_new_with_free_func(g_free);
+    add_playlist("Default Playlist");
+    load_playlist(0);
 }
