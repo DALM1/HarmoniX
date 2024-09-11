@@ -98,7 +98,7 @@ void play_music_by_index(gint index) {
 
 
         gst_element_set_state(pipeline, GST_STATE_NULL);
-        g_usleep(500000);
+        g_usleep(30000);
         g_object_set(pipeline, "uri", uri, NULL);
 
         GstStateChangeReturn ret = gst_element_set_state(pipeline, GST_STATE_PLAYING);
